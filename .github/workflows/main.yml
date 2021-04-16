@@ -25,6 +25,8 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
       
+      - name: tar stuff
+        run: tar -czf test.tar.gz ./*
 
       - name: Display structure of files
         run: ls -R
@@ -33,7 +35,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: my-arf
-          path: ./
+          path: ./test.tar.gz
           
       # Runs a single command using the runners shell
       - name: Run a one-line script
@@ -94,3 +96,12 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
         working-directory: ./
+        
+      - name: untar
+        run: tar -xzvf test.tar.gz
+        working-directory: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+        working-directory: ./
+        
