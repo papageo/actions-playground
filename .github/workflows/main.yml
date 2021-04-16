@@ -25,6 +25,9 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
       
+      - name: check size
+        run: du -sch ./*
+      
       - name: tar stuff
         run: tar -czf test.tar.gz ./*
 
