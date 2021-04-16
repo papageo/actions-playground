@@ -1,0 +1,184 @@
+name: Master CI
+
+on:
+  push:
+    branches: [master]
+    # paths-ignore: ['.github/workflows/*']
+
+env:
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: check the size
+        run: du -sch ./*
+
+      - name: zip Project for speedUp
+        run: tar -czf dbsproject.tar.gz ./*
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+
+      - name: Build
+        run: ./gradlew assemble --continue
+
+      - name: Check
+        run: ./gradlew check --continue
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v1
+        with:
+          name: test-reports
+          path: build/reports/tests
+
+      - name: SonarCloud Scan
+        run: ./gradlew sonarqube
+
+      - uses: actions/upload-artifact@v2
+        name: upload Artifact for next jobs
+        if: success()
+        with:
+          name: dbs-project
+          path: ./dbsproject.tar.gz
+
+
+  upload_image_core:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: dbs-project
+          path: ./
+
+      - name: untar
+        run: tar -xzvf dbsproject.tar.gz
+        working-directory: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-core:jib
+
+  upload_image_en:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: dbs-project
+          path: ./
+
+      - name: untar
+        run: tar -xzvf dbsproject.tar.gz
+        working-directory: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-en:jib
+
+  upload_image_aps:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: dbs-project
+          path: ./
+
+      - name: untar
+        run: tar -xzvf dbsproject.tar.gz
+        working-directory: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-aps:jib
+
+  upload_image_re:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: dbs-project
+          path: ./
+
+      - name: untar
+        run: tar -xzvf dbsproject.tar.gz
+        working-directory: ./
+
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-re:jib
+
+  upload_image_web:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: dbs-project
+          path: ./
+          
+      - name: untar
+        run: tar -xzvf dbsproject.tar.gz
+        working-directory: ./
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-web:jib
+
+
+  trigger_deploy_dev:
+    runs-on: ubuntu-latest
+    needs: [upload_image_core, upload_image_en, upload_image_aps, upload_image_re, upload_image_web]
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.APA_REPO_DISPATCH }}
+          repository: SPAG-DBS/dbs
+          event-type: deploy-dev
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
