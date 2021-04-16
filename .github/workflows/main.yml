@@ -37,3 +37,18 @@ jobs:
       - name: Use the value
         run: |
           echo "${{ env.WTV }}"  
+          
+      - name: trigger failure
+        run: exit 1
+
+      - name: alala
+        if: always()
+        run: echo still here
+
+      - name: alala
+        if: success()
+        run: echo still here2
+      
+      - name: alala
+        if: failure()
+        run: echo still here3
