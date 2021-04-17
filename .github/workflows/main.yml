@@ -1,110 +1,159 @@
-# This is a basic workflow to help you get started with Actions
+name: Master CI
 
-name: TRYOUT DOPA
-
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches: [master]
+    # paths-ignore: ['.github/workflows/*']
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+env:
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
+
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      
-      - name: check size
-        run: du -sch ./*
-      
-      - name: tar stuff
-        run: tar -czf test.tar.gz ./*
+      - uses: actions/checkout@v1
 
-      - name: Display structure of files
-        run: ls -R
-        working-directory: ./
-
-      - uses: actions/upload-artifact@v2
+      - uses: actions/cache@v2
         with:
-          name: my-arf
-          path: ./test.tar.gz
-          
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
 
-      - name: Set Test Pass Flag2
-        if: success()
-        run: |
-          echo "WTV=true" >> $GITHUB_ENV
-          
-      - name: Use the value
-        run: |
-          echo "${{ env.WTV }}"  
-          
+      - name: Build
+        run: ./gradlew assemble --continue
 
-      - name: alala
+      - name: Check
+        run: ./gradlew check --continue
+
+      - name: Upload test reports
         if: always()
-        run: echo still here
+        uses: actions/upload-artifact@v1
+        with:
+          name: test-reports
+          path: build/reports/tests
 
-      - name: alala
-        if: success()
-        run: echo still here2
-      
-      - name: alala
-        if: failure()
-        run: echo still here3
-  
-  downloadarf:
+      - name: SonarCloud Scan
+        run: ./gradlew sonarqube
+
+
+  upload_image_core:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: ./
-        
-      - uses: actions/download-artifact@v2
-        with:
-          name: my-arf
-          path: ./
-      
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: ./
+      - uses: actions/checkout@v1
 
-  downloadarf2:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-core:jib
+
+  upload_image_en:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: ./
-        
-      - uses: actions/download-artifact@v2
-        with:
-          name: my-arf
-          path: ./
-      
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: ./
-        
-      - name: untar
-        run: tar -xzvf test.tar.gz
-        working-directory: ./
+      - uses: actions/checkout@v1
 
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: ./
-        
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-en:jib
+
+  upload_image_aps:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-aps:jib
+
+  upload_image_re:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-re:jib
+
+  upload_image_web:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/adndevtools
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.npm
+          key: ${{ runner.os }}-adndevtools-${{ hashFiles('config/*.proj', '**/*.gradle*', '**/gradle-wrapper.properties', '**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-adndevtools-
+
+      - name: Build backend project, create and push core backend docker image to Azure registry
+        run: ./gradlew dbs-web:jib
+
+
+  trigger_deploy_dev:
+    runs-on: ubuntu-latest
+    needs: [upload_image_core, upload_image_en, upload_image_aps, upload_image_re, upload_image_web]
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.APA_REPO_DISPATCH }}
+          repository: SPAG-DBS/dbs
+          event-type: deploy-dev
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
